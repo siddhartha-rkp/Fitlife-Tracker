@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitLife Tracker | Diet + Workout</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'display': ['Playfair Display', 'serif'],
+                        'sans': ['DM Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .water-fill { transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-hover:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15);
+        }
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .checkmark-pop { animation: checkPop 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes checkPop {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .bubble { animation: bubble 3s ease-in-out infinite; }
+        @keyframes bubble {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); }
+        }
+        .streak-fire { animation: fireFlicker 0.5s ease-in-out infinite alternate; }
+        @keyframes fireFlicker {
+            0% { transform: scale(1) rotate(-3deg); }
+            100% { transform: scale(1.1) rotate(3deg); }
+        }
+        .tab-active {
+            background: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+        .workout-gradient {
+            background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+        }
+        .rest-day-pattern {
+            background: repeating-linear-gradient(
+                45deg,
+                #f8fafc,
+                #f8fafc 10px,
+                #f1f5f9 10px,
+                #f1f5f9 20px
+            );
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 min-h-screen p-4 md:p-6 font-sans">
+    <div class="max-w-7xl mx-auto">
+        
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <div class="flex items-center justify-center gap-3 mb-2">
+                <span class="text-4xl">💪</span>
+                <h1 class="font-display text-3xl md:text-4xl font-bold text-blue-800">FitLife Tracker</h1>
+                <span class="text-4xl">🥗</span>
+            </div>
+            <p class="text-slate-500 text-lg">Your unified diet + workout companion</p>
+            
+            <!-- Stats Row -->
+            <div class="flex items-center justify-center gap-3 flex-wrap mt-4">
+                <div class="bg-white px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+                    <span class="text-xl">📅</span>
+                    <div class="text-left">
+                        <div class="text-xs text-slate-400">Today</div>
+                        <div class="font-semibold text-slate-700 text-sm" id="todayDate">Loading...</div>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-full shadow-lg shadow-blue-500/30 flex items-center gap-2">
+                    <span>🎯</span>
+                    <span class="font-semibold text-sm">67.3 → 65 kg</span>
+                </div>
+                
+                <div class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full shadow-lg shadow-orange-500/30 flex items-center gap-2" id="streakBadge">
+                    <span class="text-lg streak-fire">🔥</span>
+                    <div class="text-left">
+                        <div class="text-xs opacity-80">Streak</div>
+                        <div class="font-bold text-sm" id="streakCount">0 days</div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-full shadow-lg shadow-emerald-500/30 flex items-center gap-2">
+                    <span>⚖️</span>
+                    <div class="text-left">
+                        <div class="text-xs opacity-80">Current</div>
+                        <div class="font-bold text-sm" id="headerWeight">67.3 kg</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Week Navigation -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <button onclick="changeWeek(-1)" class="p-2 hover:bg-slate-100 rounded-lg transition-all">
+                    <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <div class="text-center">
+                    <div class="text-sm text-slate-400">Week of</div>
+                    <div class="font-semibold text-slate-700" id="weekRangeDisplay">Loading...</div>
+                </div>
+                <button onclick="changeWeek(1)" class="p-2 hover:bg-slate-100 rounded-lg transition-all">
+                    <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Day Navigation with Workout Type -->
+            <div class="grid grid-cols-7 gap-2" id="dayNav">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <div class="flex gap-2 mb-4 justify-center">
+            <button onclick="switchTab('overview')" class="tab-btn px-6 py-2.5 rounded-xl font-semibold text-sm transition-all tab-active" data-tab="overview">
+                📊 Overview
+            </button>
+            <button onclick="switchTab('diet')" class="tab-btn px-6 py-2.5 rounded-xl font-semibold text-sm transition-all bg-white text-slate-600 hover:bg-slate-50" data-tab="diet">
+                🥗 Diet
+            </button>
+            <button onclick="switchTab('workout')" class="tab-btn px-6 py-2.5 rounded-xl font-semibold text-sm transition-all bg-white text-slate-600 hover:bg-slate-50" data-tab="workout">
+                💪 Workout
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="tabContent">
+            <!-- Content loaded dynamically -->
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-8 text-slate-400 text-sm">
+            <p>Use ← → arrow keys to navigate days • Your progress saves automatically</p>
+        </footer>
+    </div>
+
+    <!-- Weight Log Modal -->
+    <div id="weightModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 class="font-display text-xl font-semibold text-slate-800 mb-4">⚖️ Log Your Weight</h3>
+            <div class="mb-4">
+                <label class="block text-sm text-slate-500 mb-2">Weight (kg)</label>
+                <input type="number" id="weightInput" step="0.1" min="40" max="150" 
+                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg font-semibold text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="67.0">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm text-slate-500 mb-2">Date</label>
+                <input type="date" id="weightDate" 
+                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeWeightModal()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-semibold transition-all">Cancel</button>
+                <button onclick="saveWeight()" class="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold transition-all shadow-lg shadow-blue-500/30">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PR Log Modal -->
+    <div id="prModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 class="font-display text-xl font-semibold text-slate-800 mb-2">🏆 Log Your PR</h3>
+            <p class="text-slate-500 text-sm mb-4" id="prExerciseName">Push-ups</p>
+            <div class="mb-4">
+                <label class="block text-sm text-slate-500 mb-2" id="prLabel">Time (seconds)</label>
+                <input type="number" id="prInput" step="1" min="1" 
+                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg font-semibold text-center focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       placeholder="300">
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closePrModal()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-semibold transition-all">Cancel</button>
+                <button onclick="savePr()" class="flex-1 py-3 workout-gradient text-white rounded-xl font-semibold transition-all shadow-lg shadow-orange-500/30">Save PR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== DATA ====================
+        
+        // Motivational Images (Fitness themed)
+        const motivationalImages = [
+            { url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=200&fit=crop', alt: 'Gym motivation' },
+            { url: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400&h=200&fit=crop', alt: 'Running at sunrise' },
+            { url: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=200&fit=crop', alt: 'Workout determination' },
+            { url: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400&h=200&fit=crop', alt: 'Strength training' },
+            { url: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=400&h=200&fit=crop', alt: 'Morning run' },
+            { url: 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&h=200&fit=crop', alt: 'Victory pose' },
+            { url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=200&fit=crop', alt: 'Yoga peace' }
+        ];
+
+        // Quotes
+        const dailyQuotes = [
+            { text: '"The only bad workout is the one that didn\'t happen."', author: '— Unknown' },
+            { text: '"Take care of your body. It\'s the only place you have to live."', author: '— Jim Rohn' },
+            { text: '"Discipline is choosing between what you want now and what you want most."', author: '— Abraham Lincoln' },
+            { text: '"Your body can stand almost anything. It\'s your mind you have to convince."', author: '— Unknown' },
+            { text: '"Success is the sum of small efforts repeated day in and day out."', author: '— Robert Collier' },
+            { text: '"The pain you feel today will be the strength you feel tomorrow."', author: '— Unknown' },
+            { text: '"You don\'t have to be great to start, but you have to start to be great."', author: '— Zig Ziglar' }
+        ];
+
+        // Workout Schedule (0=Mon, 6=Sun)
+        const workoutSchedule = {
+            0: { type: 'push', name: 'Push + Core', emoji: '💪', color: 'orange' },
+            1: { type: 'pull', name: 'Pull', emoji: '🏋️', color: 'blue' },
+            2: { type: 'rest', name: 'Rest', emoji: '😴', color: 'gray' },
+            3: { type: 'legs', name: 'Legs', emoji: '🦵', color: 'purple' },
+            4: { type: 'upper', name: 'Upper Var.', emoji: '🔄', color: 'teal' },
+            5: { type: 'rest', name: 'Rest', emoji: '😴', color: 'gray' },
+            6: { type: 'rest', name: 'Rest', emoji: '😴', color: 'gray' }
+        };
+
+        // Workout Details
+        const workoutDetails = {
+            push: {
+                title: 'Push + Core Day',
+                subtitle: 'Chest, Shoulders, Triceps + Core',
+                color: 'orange',
+                exercises: [
+                    { name: 'Push-ups', sets: '100 total', reps: 'For time', rest: '—', notes: 'Your challenge — beat the clock!', isChallenge: true, prType: 'time', prUnit: 'seconds' },
+                    { name: 'Rest & Recover', sets: '—', reps: '3-5 min', rest: '—', notes: 'Let heart rate settle', isRest: true },
+                    { name: 'Plank', sets: '3', reps: '30-45s', rest: '30s', notes: 'Core — keep body straight' },
+                    { name: 'Dead Bug', sets: '3', reps: '10 each side', rest: '30s', notes: 'Core stability — slow & controlled' },
+                    { name: 'Mountain Climbers', sets: '3', reps: '20 reps', rest: '30s', notes: 'Core + cardio finish' }
+                ]
+            },
+            pull: {
+                title: 'Pull Day',
+                subtitle: 'Back, Biceps, Rear Delts',
+                color: 'blue',
+                exercises: [
+                    { name: 'Pull-ups', sets: '30 total', reps: 'For time', rest: '—', notes: 'Your challenge — beat the clock!', isChallenge: true, prType: 'time', prUnit: 'seconds' },
+                    { name: 'Rest & Recover', sets: '—', reps: '2-3 min', rest: '—', notes: 'Shake out arms', isRest: true },
+                    { name: 'Australian Rows', sets: '3', reps: '12-15', rest: '45s', notes: 'Under table — pull chest to edge' },
+                    { name: 'Doorframe Rows', sets: '3', reps: '10-12', rest: '45s', notes: 'Hold frame, lean back, pull' },
+                    { name: 'Bicep Curls', sets: '3', reps: '15', rest: '30s', notes: 'Water bottles or loaded bags' },
+                    { name: 'Superman Hold', sets: '3', reps: '20s', rest: '30s', notes: 'Lower back — squeeze glutes' }
+                ]
+            },
+            legs: {
+                title: 'Legs Day',
+                subtitle: 'Quads, Glutes, Hamstrings, Calves',
+                color: 'purple',
+                exercises: [
+                    { name: 'Squats', sets: 'Max reps', reps: 'in 60s', rest: '—', notes: 'Your challenge — beat the count!', isChallenge: true, prType: 'reps', prUnit: 'reps' },
+                    { name: 'Jump Squats', sets: '3', reps: '20', rest: '45s', notes: 'Explosive — land soft' },
+                    { name: 'Lunges', sets: '3', reps: '10 each leg', rest: '45s', notes: 'Keep torso upright' },
+                    { name: 'Hip Thrusts', sets: '3', reps: '20', rest: '45s', notes: 'Squeeze glutes at top' },
+                    { name: 'Single-Leg RDL', sets: '3', reps: '10 each', rest: '45s', notes: 'Hamstring focus — balance' },
+                    { name: 'Calf Raises', sets: '3', reps: '20', rest: '30s', notes: 'Slow, full range of motion' }
+                ]
+            },
+            upper: {
+                title: 'Upper Body Variations',
+                subtitle: 'Light/Moderate — Build Capacity',
+                color: 'teal',
+                exercises: [
+                    { name: 'Pike Push-ups', sets: '3', reps: '8-12', rest: '60s', notes: 'Shoulders — stop 2-3 reps before failure' },
+                    { name: 'Diamond Push-ups', sets: '3', reps: '10-15', rest: '60s', notes: 'Triceps — NOT to failure' },
+                    { name: 'Wide Push-ups', sets: '2', reps: '15', rest: '45s', notes: 'Chest stretch — easy effort' },
+                    { name: 'Tricep Dips', sets: '3', reps: '12', rest: '45s', notes: 'Chair dips — control the descent' },
+                    { name: 'Shoulder Taps', sets: '3', reps: '10 each', rest: '30s', notes: 'Plank position — minimize hip sway' }
+                ]
+            },
+            rest: {
+                title: 'Rest Day',
+                subtitle: 'Recovery & Light Activity',
+                color: 'gray',
+                exercises: [
+                    { name: 'Light Walking', sets: '—', reps: '15-20 min', rest: '—', notes: 'Optional — active recovery', isOptional: true },
+                    { name: 'Stretching', sets: '—', reps: '10 min', rest: '—', notes: 'Focus on tight areas', isOptional: true },
+                    { name: 'Foam Rolling', sets: '—', reps: '5-10 min', rest: '—', notes: 'If available', isOptional: true }
+                ]
+            }
+        };
+
+        // Meal Templates
+        const mealTemplates = [
+            { dayName: 'Monday', calories: '1,285', protein: '80g', meals: [
+                { type: '🌅 Breakfast', title: 'Nut Milk + Boiled Egg', details: 'Milk (200ml) + 5 almonds + 5 pistas + 1 tbsp pumpkin seeds + 5 raisins + 1 date + 1 boiled egg', calories: '335', protein: '18g' },
+                { type: '🍛 Lunch', title: 'Rice + Dal + Sabzi + Curd', details: 'Rice (75g) + Dal (1 katori) + Dry sabzi (1 katori) + Curd (100g) + Salad', calories: '420', protein: '18g' },
+                { type: '🏋️ Post-Workout', title: 'Protein Shake', details: '1 scoop protein powder with water', calories: '130', protein: '24g' },
+                { type: '🌙 Dinner', title: 'Chapati + Paneer Bhurji', details: '2 chapatis + Paneer bhurji (75g) + Salad', calories: '400', protein: '20g' }
+            ]},
+            { dayName: 'Tuesday', calories: '1,300', protein: '96g', meals: [
+                { type: '🌅 Breakfast', title: 'Poha + Curd', details: 'Poha (50g) with peanuts (15g) + Curd (100g)', calories: '340', protein: '12g' },
+                { type: '🍛 Lunch', title: 'Rice + Chole + Curd', details: 'Rice (75g) + Chole (1 katori) + Sabzi + Curd (100g) + Salad', calories: '450', protein: '20g' },
+                { type: '🏋️ Post-Workout', title: 'Protein Shake', details: '1 scoop protein powder with water', calories: '130', protein: '24g' },
+                { type: '🌙 Dinner', title: 'Chapati + Grilled Chicken', details: '1.5 chapatis + Grilled chicken (120g) + Salad', calories: '380', protein: '40g' }
+            ]},
+            { dayName: 'Wednesday', calories: '1,360', protein: '90g', meals: [
+                { type: '🌅 Breakfast', title: 'Dosa + Egg Whites', details: 'Plain dosa (1) + Sambar (1 katori) + Egg white omelette (2 eggs)', calories: '350', protein: '18g' },
+                { type: '🍛 Lunch', title: 'Rice + Rajma + Curd', details: 'Rice (75g) + Rajma (1 katori) + Curd (100g) + Salad', calories: '430', protein: '18g' },
+                { type: '🏋️ Post-Workout', title: 'Protein Shake', details: '1 scoop protein powder with water', calories: '130', protein: '24g' },
+                { type: '🌙 Dinner (Outside)', title: 'Tandoori Chicken/Paneer Tikka', details: 'Tandoori (4 pcs) OR Paneer tikka (6 pcs) + 1 roti + Salad', calories: '450', protein: '30g' }
+            ]},
+            { dayName: 'Thursday', calories: '1,265', protein: '78g', meals: [
+                { type: '🌅 Breakfast', title: 'Nut Milk + Boiled Egg', details: 'Milk (200ml) + nuts mix + 1 boiled egg', calories: '335', protein: '18g' },
+                { type: '🍛 Lunch', title: 'Rice + Dal + Sabzi + Curd', details: 'Rice (75g) + Dal (1 katori) + Aloo/Gobi sabzi + Curd (100g) + Salad', calories: '420', protein: '16g' },
+                { type: '🏋️ Post-Workout', title: 'Protein Shake', details: '1 scoop protein powder with water', calories: '130', protein: '24g' },
+                { type: '🌙 Dinner', title: 'Chapati + Egg Curry', details: '2 chapatis + Egg curry (2 eggs) + Salad', calories: '380', protein: '20g' }
+            ]},
+            { dayName: 'Friday', calories: '1,260', protein: '89g', meals: [
+                { type: '🌅 Breakfast', title: 'Paneer Sandwich', details: 'Brown bread (2) + Paneer (50g) + Veggies + Chutney', calories: '320', protein: '16g' },
+                { type: '🍛 Lunch', title: 'Rice + Dal + Bhindi + Curd', details: 'Rice (75g) + Dal (1 katori) + Bhindi sabzi + Curd (100g) + Salad', calories: '410', protein: '17g' },
+                { type: '🏋️ Post-Workout', title: 'Protein Shake', details: '1 scoop protein powder with water', calories: '130', protein: '24g' },
+                { type: '🌙 Dinner', title: 'Chapati + Fish Curry', details: '1.5 chapatis + Fish curry (120g) + Salad', calories: '400', protein: '32g' }
+            ]},
+            { dayName: 'Saturday', calories: '1,400', protein: '88g', meals: [
+                { type: '🌅 Breakfast', title: 'Poha + Curd', details: 'Poha (50g) + Peanuts (15g) + Curd (100g)', calories: '340', protein: '12g' },
+                { type: '🍛 Lunch', title: 'Rice + Chole + Curd', details: 'Rice (75g) + Chole (1 katori) + Sabzi + Curd (100g) + Salad', calories: '450', protein: '20g' },
+                { type: '🏋️ Post-Workout', title: 'Protein Shake', details: '1 scoop protein powder with water', calories: '130', protein: '24g' },
+                { type: '🌙 Dinner (Outside)', title: 'Grilled Fish/Chicken', details: 'Grilled protein + 1 roti + Raita', calories: '480', protein: '32g' }
+            ]},
+            { dayName: 'Sunday', calories: '1,305', protein: '87g', meals: [
+                { type: '🌅 Breakfast', title: 'Nut Milk + Boiled Egg', details: 'Milk (200ml) + nuts mix + 1 boiled egg', calories: '335', protein: '18g' },
+                { type: '🍛 Lunch', title: 'Rice + Dal + Mixed Veg + Curd', details: 'Rice (75g) + Dal (1 katori) + Mixed veg + Curd (100g) + Salad', calories: '420', protein: '17g' },
+                { type: '🏋️ Post-Workout', title: 'Protein Shake', details: '1 scoop protein powder with water', calories: '130', protein: '24g' },
+                { type: '🌙 Dinner', title: 'Chapati + Chicken Curry', details: '2 chapatis + Chicken curry (100g) + Salad', calories: '420', protein: '28g' }
+            ]}
+        ];
+
+        // ==================== STATE ====================
+        let currentDay = 0;
+        let currentTab = 'overview';
+        let currentWeekStart = getMonday(new Date());
+        let currentPrExercise = null;
+        
+        // Persisted state
+        let mealChecks = JSON.parse(localStorage.getItem('fitlife_meals')) || {};
+        let exerciseChecks = JSON.parse(localStorage.getItem('fitlife_exercises')) || {};
+        let dayCompleted = JSON.parse(localStorage.getItem('fitlife_days')) || {};
+        let waterIntake = JSON.parse(localStorage.getItem('fitlife_water')) || {};
+        let dayNotes = JSON.parse(localStorage.getItem('fitlife_notes')) || {};
+        let weightLog = JSON.parse(localStorage.getItem('fitlife_weight')) || [{ date: new Date().toISOString().split('T')[0], weight: 67.3 }];
+        let prLog = JSON.parse(localStorage.getItem('fitlife_prs')) || {};
+
+        // ==================== HELPERS ====================
+        function getMonday(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(d.setDate(diff));
+        }
+
+        function formatDate(date, format = 'short') {
+            const options = format === 'long' 
+                ? { weekday: 'long', month: 'long', day: 'numeric' }
+                : { month: 'short', day: 'numeric' };
+            return new Date(date).toLocaleDateString('en-US', options);
+        }
+
+        function getDateKey(dayIndex) {
+            const date = new Date(currentWeekStart);
+            date.setDate(date.getDate() + dayIndex);
+            return date.toISOString().split('T')[0];
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.toDateString() === today.toDateString();
+        }
+
+        function changeWeek(direction) {
+            currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+            currentDay = 0;
+            init();
+        }
+
+        function calculateStreak() {
+            let streak = 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            for (let i = 0; i < 365; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(checkDate.getDate() - i);
+                const dateKey = checkDate.toISOString().split('T')[0];
+                
+                if (dayCompleted[dateKey]) {
+                    streak++;
+                } else if (i > 0) {
+                    break;
+                }
+            }
+            return streak;
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // ==================== RENDERING ====================
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('bg-white', 'text-slate-600');
+                if (btn.dataset.tab === tab) {
+                    btn.classList.add('tab-active');
+                    btn.classList.remove('bg-white', 'text-slate-600');
+                }
+            });
+            renderTabContent();
+        }
+
+        function renderDayNav() {
+            const nav = document.getElementById('dayNav');
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            
+            nav.innerHTML = days.map((day, index) => {
+                const date = new Date(currentWeekStart);
+                date.setDate(date.getDate() + index);
+                const dateKey = getDateKey(index);
+                const isComplete = dayCompleted[dateKey];
+                const isTodayDate = isToday(date);
+                const workout = workoutSchedule[index];
+                
+                const colorClasses = {
+                    orange: 'bg-orange-100 text-orange-700 border-orange-300',
+                    blue: 'bg-blue-100 text-blue-700 border-blue-300',
+                    purple: 'bg-purple-100 text-purple-700 border-purple-300',
+                    teal: 'bg-teal-100 text-teal-700 border-teal-300',
+                    gray: 'bg-slate-100 text-slate-500 border-slate-200'
+                };
+                
+                let classes = 'day-btn p-2 rounded-xl font-semibold transition-all flex flex-col items-center cursor-pointer border-2 ';
+                
+                if (index === currentDay) {
+                    classes += 'ring-2 ring-blue-500 ring-offset-2 ';
+                }
+                
+                if (isComplete) {
+                    classes += 'bg-emerald-500 text-white border-emerald-500 ';
+                } else {
+                    classes += colorClasses[workout.color] + ' ';
+                }
+                
+                if (isTodayDate && !isComplete) {
+                    classes += 'ring-2 ring-amber-400 ring-offset-1 ';
+                }
+                
+                return `
+                    <button class="${classes}" data-day="${index}">
+                        <span class="text-xs opacity-70">${day}</span>
+                        <span class="text-lg font-bold">${date.getDate()}</span>
+                        <span class="text-xs">${isComplete ? '✓' : workout.emoji}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderTabContent() {
+            const container = document.getElementById('tabContent');
+            
+            if (currentTab === 'overview') {
+                container.innerHTML = renderOverviewTab();
+            } else if (currentTab === 'diet') {
+                container.innerHTML = renderDietTab();
+            } else if (currentTab === 'workout') {
+                container.innerHTML = renderWorkoutTab();
+            }
+            
+            attachEventListeners();
+        }
+
+        function renderOverviewTab() {
+            const dateKey = getDateKey(currentDay);
+            const date = new Date(currentWeekStart);
+            date.setDate(date.getDate() + currentDay);
+            const workout = workoutSchedule[currentDay];
+            const workoutData = workoutDetails[workout.type];
+            const mealData = mealTemplates[currentDay];
+            
+            const todayWater = waterIntake[dateKey] || 0;
+            const mealCount = mealData.meals.length;
+            let mealsCompleted = 0;
+            for (let i = 0; i < mealCount; i++) {
+                if (mealChecks[`${dateKey}-${i}`]) mealsCompleted++;
+            }
+            
+            const exerciseCount = workoutData.exercises.filter(e => !e.isRest && !e.isOptional).length;
+            let exercisesCompleted = 0;
+            for (let i = 0; i < workoutData.exercises.length; i++) {
+                if (exerciseChecks[`${dateKey}-${i}`]) exercisesCompleted++;
+            }
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left Column -->
+                    <div class="lg:col-span-4 space-y-5">
+                        <!-- Motivation Card -->
+                        <div class="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 rounded-3xl p-5 text-white relative overflow-hidden shadow-xl">
+                            <div class="absolute inset-0 opacity-10">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                            </div>
+                            <div class="relative z-10">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div>
+                                        <div class="text-4xl font-display font-bold opacity-30">${String(date.getDate()).padStart(2, '0')}</div>
+                                        <div class="text-lg font-display font-semibold -mt-1">${mealData.dayName}</div>
+                                        <div class="text-xs text-blue-200">${formatDate(date, 'long')}</div>
+                                    </div>
+                                    <div class="px-3 py-1.5 rounded-full text-xs font-semibold ${workout.type === 'rest' ? 'bg-slate-500/50' : 'bg-white/20'}">
+                                        ${workout.emoji} ${workout.name}
+                                    </div>
+                                </div>
+                                
+                                <div class="rounded-xl overflow-hidden shadow-xl mb-3">
+                                    <img src="${motivationalImages[currentDay].url}" alt="${motivationalImages[currentDay].alt}" class="w-full h-32 object-cover">
+                                </div>
+                                
+                                <div class="glass-effect rounded-xl p-3">
+                                    <p class="text-white/95 text-sm italic leading-relaxed mb-1">${dailyQuotes[currentDay].text}</p>
+                                    <span class="text-white/70 text-xs">${dailyQuotes[currentDay].author}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Stats -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+                                <div class="text-2xl mb-1">🥗</div>
+                                <div class="text-xl font-bold text-blue-600">${mealsCompleted}/${mealCount}</div>
+                                <div class="text-xs text-slate-500">Meals</div>
+                            </div>
+                            <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+                                <div class="text-2xl mb-1">💪</div>
+                                <div class="text-xl font-bold text-orange-500">${workout.type === 'rest' ? '😴' : exercisesCompleted + '/' + exerciseCount}</div>
+                                <div class="text-xs text-slate-500">${workout.type === 'rest' ? 'Rest Day' : 'Exercises'}</div>
+                            </div>
+                            <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+                                <div class="text-2xl mb-1">💧</div>
+                                <div class="text-xl font-bold text-cyan-500">${todayWater}/8</div>
+                                <div class="text-xs text-slate-500">Water</div>
+                            </div>
+                            <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+                                <div class="text-2xl mb-1">🔥</div>
+                                <div class="text-xl font-bold text-rose-500">${mealData.calories}</div>
+                                <div class="text-xs text-slate-500">Calories</div>
+                            </div>
+                        </div>
+
+                        <!-- Water Tracker Mini -->
+                        <div class="bg-white rounded-2xl p-4 shadow-sm">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-semibold text-slate-800">💧 Water</h3>
+                                <span class="text-sm font-semibold text-cyan-600">${todayWater}/8</span>
+                            </div>
+                            <div class="grid grid-cols-8 gap-1" id="waterGlassesOverview">
+                                ${Array(8).fill(0).map((_, i) => `
+                                    <button onclick="setWater(${i + 1})" class="aspect-square rounded-lg flex items-center justify-center text-sm transition-all ${i < todayWater ? 'bg-cyan-500 text-white' : 'bg-slate-100 hover:bg-cyan-100'}">💧</button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Weight -->
+                        <div class="bg-white rounded-2xl p-4 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-semibold text-slate-800">⚖️ Weight</h3>
+                                <button onclick="openWeightModal()" class="text-sm text-blue-600 font-medium">+ Log</button>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-2xl font-bold text-slate-800">${weightLog[weightLog.length - 1]?.weight || 67.3}</div>
+                                    <div class="text-xs text-slate-400">Current kg</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-lg font-bold text-emerald-500">${(67.3 - (weightLog[weightLog.length - 1]?.weight || 67.3)).toFixed(1)}</div>
+                                    <div class="text-xs text-slate-400">Lost kg</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="lg:col-span-8 space-y-5">
+                        <!-- Today's Meals Summary -->
+                        <div class="bg-white rounded-3xl p-5 shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="font-display text-xl font-semibold text-slate-800">🥗 Meals</h2>
+                                <span class="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">${mealsCompleted}/${mealCount}</span>
+                            </div>
+                            <div class="space-y-2">
+                                ${mealData.meals.map((meal, index) => {
+                                    const isChecked = mealChecks[`${dateKey}-${index}`];
+                                    return `
+                                        <div class="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${isChecked ? 'bg-emerald-50' : 'bg-slate-50 hover:bg-blue-50'}" onclick="toggleMeal('${dateKey}', ${index})">
+                                            <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}">
+                                                ${isChecked ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="font-semibold text-sm ${isChecked ? 'line-through opacity-60' : ''}">${meal.title}</div>
+                                                <div class="text-xs text-slate-500">${meal.type} • ${meal.calories} kcal</div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Today's Workout Summary -->
+                        <div class="bg-white rounded-3xl p-5 shadow-sm ${workout.type === 'rest' ? 'rest-day-pattern' : ''}">
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="font-display text-xl font-semibold text-slate-800">${workout.emoji} ${workoutData.title}</h2>
+                                ${workout.type !== 'rest' ? `<span class="text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">${exercisesCompleted}/${exerciseCount}</span>` : ''}
+                            </div>
+                            <div class="space-y-2">
+                                ${workoutData.exercises.map((ex, index) => {
+                                    const isChecked = exerciseChecks[`${dateKey}-${index}`];
+                                    if (ex.isRest) {
+                                        return `<div class="p-3 rounded-xl bg-amber-50 text-amber-700 text-sm text-center">⏸️ ${ex.notes}</div>`;
+                                    }
+                                    return `
+                                        <div class="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${isChecked ? 'bg-emerald-50' : ex.isOptional ? 'bg-slate-50/50' : 'bg-slate-50 hover:bg-orange-50'}" onclick="toggleExercise('${dateKey}', ${index})">
+                                            <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}">
+                                                ${isChecked ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="font-semibold text-sm ${isChecked ? 'line-through opacity-60' : ''}">${ex.name} ${ex.isChallenge ? '🏆' : ''}</div>
+                                                <div class="text-xs text-slate-500">${ex.sets} × ${ex.reps}</div>
+                                            </div>
+                                            ${ex.isChallenge ? `<button onclick="event.stopPropagation(); openPrModal('${ex.name}', '${ex.prType}', '${ex.prUnit}')" class="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-1 rounded-lg hover:bg-orange-200">Log PR</button>` : ''}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Complete Day Button -->
+                        <button onclick="toggleDayComplete()" class="w-full py-4 ${dayCompleted[dateKey] ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-blue-600 to-indigo-600'} text-white rounded-2xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-3">
+                            <span>${dayCompleted[dateKey] ? '✓' : '✨'}</span>
+                            <span>${dayCompleted[dateKey] ? 'Day Completed!' : 'Mark Day Complete'}</span>
+                        </button>
+
+                        <!-- Notes -->
+                        <div class="bg-white rounded-2xl p-4 shadow-sm">
+                            <h3 class="font-semibold text-slate-800 mb-2">📝 Notes</h3>
+                            <textarea id="dayNotes" placeholder="How are you feeling today?" 
+                                class="w-full h-20 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onchange="saveNotes()">${dayNotes[dateKey] || ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDietTab() {
+            const dateKey = getDateKey(currentDay);
+            const mealData = mealTemplates[currentDay];
+            const todayWater = waterIntake[dateKey] || 0;
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Meals -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-3xl p-6 shadow-sm">
+                            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                                <div>
+                                    <h2 class="font-display text-2xl font-semibold text-slate-800">📋 ${mealData.dayName}'s Meals</h2>
+                                    <p class="text-slate-500 text-sm mt-1">${mealData.calories} kcal • ${mealData.protein} protein</p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                ${mealData.meals.map((meal, index) => {
+                                    const isChecked = mealChecks[`${dateKey}-${index}`];
+                                    return `
+                                        <div class="p-4 rounded-2xl border-2 transition-all cursor-pointer ${isChecked ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-transparent hover:border-blue-200'}" 
+                                             onclick="toggleMeal('${dateKey}', ${index})">
+                                            <div class="flex gap-4">
+                                                <div class="flex-shrink-0 mt-1">
+                                                    <div class="w-7 h-7 rounded-lg border-2 flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}">
+                                                        ${isChecked ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <span class="text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full ${isChecked ? 'bg-emerald-200 text-emerald-700' : 'bg-blue-100 text-blue-700'}">${meal.type}</span>
+                                                        <span class="font-semibold text-rose-500 text-sm">${meal.calories} kcal</span>
+                                                    </div>
+                                                    <div class="font-semibold text-slate-800 mb-1 ${isChecked ? 'line-through opacity-60' : ''}">${meal.title}</div>
+                                                    <div class="text-slate-500 text-sm">${meal.details}</div>
+                                                    <span class="inline-block mt-2 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">🥩 ${meal.protein}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="space-y-5">
+                        <!-- Water Tracker Full -->
+                        <div class="bg-white rounded-3xl p-5 shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-display text-lg font-semibold text-slate-800">💧 Water Tracker</h3>
+                                <span class="text-sm font-semibold text-cyan-600 bg-cyan-50 px-3 py-1 rounded-full">${todayWater}/8</span>
+                            </div>
+                            
+                            <div class="flex justify-center mb-4">
+                                <div class="relative w-24 h-32 bg-gradient-to-b from-cyan-50 to-cyan-100 rounded-b-3xl rounded-t-xl border-4 border-cyan-300 overflow-hidden">
+                                    <div class="water-fill absolute bottom-0 left-0 right-0 bg-gradient-to-t from-cyan-500 to-sky-400" style="height: ${(todayWater / 8) * 100}%">
+                                        <div class="absolute top-2 left-2 w-2 h-2 bg-white/50 rounded-full bubble"></div>
+                                    </div>
+                                    <div class="absolute top-0 left-2 w-2 h-full bg-white/40 rounded-full"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-8 gap-1 mb-3">
+                                ${Array(8).fill(0).map((_, i) => `
+                                    <button onclick="setWater(${i + 1})" class="aspect-square rounded-lg flex items-center justify-center text-sm transition-all ${i < todayWater ? 'bg-cyan-500 text-white shadow-md' : 'bg-slate-100 hover:bg-cyan-100'}">💧</button>
+                                `).join('')}
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <button onclick="addWater()" class="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-sky-500 text-white rounded-xl font-semibold text-sm">+ Add</button>
+                                <button onclick="resetWater()" class="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm">Reset</button>
+                            </div>
+                        </div>
+
+                        <!-- Macros -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm">
+                            <h3 class="font-display text-lg font-semibold text-slate-800 mb-4">📊 Today's Macros</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600">🥩 Protein</span>
+                                        <span class="font-bold text-amber-600">${mealData.protein}</span>
+                                    </div>
+                                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full" style="width: 75%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600">🔥 Calories</span>
+                                        <span class="font-bold text-rose-500">${mealData.calories}</span>
+                                    </div>
+                                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-full" style="width: 85%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Portion Guide -->
+                        <div class="bg-blue-50 rounded-2xl p-4">
+                            <h3 class="font-semibold text-blue-800 mb-2">📏 Quick Portions</h3>
+                            <div class="text-sm text-blue-700 space-y-1">
+                                <p>• Rice: 75g (½ katori)</p>
+                                <p>• Chapati: 2 medium</p>
+                                <p>• Dal/Chole: 1 katori</p>
+                                <p>• Curd: 100g (½ katori)</p>
+                                <p>• Chicken: 120g (palm size)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderWorkoutTab() {
+            const dateKey = getDateKey(currentDay);
+            const workout = workoutSchedule[currentDay];
+            const workoutData = workoutDetails[workout.type];
+
+            // Get PRs for challenge exercises
+            const pushupPr = prLog['Push-ups'] || null;
+            const pullupPr = prLog['Pull-ups'] || null;
+            const squatPr = prLog['Squats'] || null;
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Workout -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-3xl p-6 shadow-sm ${workout.type === 'rest' ? 'rest-day-pattern' : ''}">
+                            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                                <div>
+                                    <h2 class="font-display text-2xl font-semibold text-slate-800">${workout.emoji} ${workoutData.title}</h2>
+                                    <p class="text-slate-500 text-sm mt-1">${workoutData.subtitle}</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm text-slate-400">Est. Time</div>
+                                    <div class="font-bold text-slate-700">${workout.type === 'rest' ? '—' : '25-30 min'}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                ${workoutData.exercises.map((ex, index) => {
+                                    const isChecked = exerciseChecks[`${dateKey}-${index}`];
+                                    
+                                    if (ex.isRest) {
+                                        return `
+                                            <div class="p-4 rounded-xl bg-amber-50 border-2 border-amber-200 text-center">
+                                                <span class="text-amber-600 font-semibold">⏸️ ${ex.reps} — ${ex.notes}</span>
+                                            </div>
+                                        `;
+                                    }
+                                    
+                                    const pr = prLog[ex.name];
+                                    
+                                    return `
+                                        <div class="p-4 rounded-2xl border-2 transition-all ${isChecked ? 'bg-emerald-50 border-emerald-300' : ex.isOptional ? 'bg-slate-50/50 border-dashed border-slate-200' : 'bg-slate-50 border-transparent hover:border-orange-200'} ${ex.isChallenge ? 'ring-2 ring-orange-300 ring-offset-2' : ''}">
+                                            <div class="flex gap-4">
+                                                <div class="flex-shrink-0 mt-1 cursor-pointer" onclick="toggleExercise('${dateKey}', ${index})">
+                                                    <div class="w-7 h-7 rounded-lg border-2 flex items-center justify-center ${isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white hover:border-orange-400'}">
+                                                        ${isChecked ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-2 mb-1">
+                                                        <span class="font-semibold text-slate-800 ${isChecked ? 'line-through opacity-60' : ''}">${ex.name}</span>
+                                                        ${ex.isChallenge ? '<span class="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">🏆 CHALLENGE</span>' : ''}
+                                                        ${ex.isOptional ? '<span class="text-xs text-slate-400">(Optional)</span>' : ''}
+                                                    </div>
+                                                    <div class="flex items-center gap-4 text-sm text-slate-500 mb-2">
+                                                        <span><strong>Sets:</strong> ${ex.sets}</span>
+                                                        <span><strong>Reps:</strong> ${ex.reps}</span>
+                                                        ${ex.rest !== '—' ? `<span><strong>Rest:</strong> ${ex.rest}</span>` : ''}
+                                                    </div>
+                                                    <div class="text-sm text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg inline-block">${ex.notes}</div>
+                                                    
+                                                    ${ex.isChallenge ? `
+                                                        <div class="mt-3 flex items-center gap-3">
+                                                            <button onclick="openPrModal('${ex.name}', '${ex.prType}', '${ex.prUnit}')" class="px-4 py-2 workout-gradient text-white rounded-lg font-semibold text-sm shadow-lg shadow-orange-500/30 hover:shadow-xl transition-all">
+                                                                📝 Log ${ex.prType === 'time' ? 'Time' : 'Reps'}
+                                                            </button>
+                                                            ${pr ? `
+                                                                <div class="text-sm">
+                                                                    <span class="text-slate-400">Best:</span>
+                                                                    <span class="font-bold text-orange-600">${ex.prType === 'time' ? formatTime(pr.value) : pr.value + ' reps'}</span>
+                                                                    <span class="text-xs text-slate-400">(${pr.date})</span>
+                                                                </div>
+                                                            ` : ''}
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="space-y-5">
+                        <!-- PR Records -->
+                        <div class="bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl p-5 text-white shadow-xl">
+                            <h3 class="font-display text-lg font-semibold mb-4">🏆 Personal Records</h3>
+                            <div class="space-y-3">
+                                <div class="bg-white/20 rounded-xl p-3">
+                                    <div class="text-sm opacity-80">Push-ups (100)</div>
+                                    <div class="text-xl font-bold">${pushupPr ? formatTime(pushupPr.value) : '—'}</div>
+                                </div>
+                                <div class="bg-white/20 rounded-xl p-3">
+                                    <div class="text-sm opacity-80">Pull-ups (30)</div>
+                                    <div class="text-xl font-bold">${pullupPr ? formatTime(pullupPr.value) : '—'}</div>
+                                </div>
+                                <div class="bg-white/20 rounded-xl p-3">
+                                    <div class="text-sm opacity-80">Squats (60s)</div>
+                                    <div class="text-xl font-bold">${squatPr ? squatPr.value + ' reps' : '—'}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weekly Schedule -->
+                        <div class="bg-white rounded-2xl p-5 shadow-sm">
+                            <h3 class="font-display text-lg font-semibold text-slate-800 mb-4">📅 Weekly Schedule</h3>
+                            <div class="space-y-2">
+                                ${Object.entries(workoutSchedule).map(([day, w]) => `
+                                    <div class="flex items-center justify-between p-2 rounded-lg ${parseInt(day) === currentDay ? 'bg-blue-50' : ''}">
+                                        <span class="text-sm ${parseInt(day) === currentDay ? 'font-semibold text-blue-700' : 'text-slate-600'}">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day]}</span>
+                                        <span class="text-sm ${w.type === 'rest' ? 'text-slate-400' : 'font-medium text-slate-700'}">${w.emoji} ${w.name}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Tips -->
+                        <div class="bg-orange-50 rounded-2xl p-4">
+                            <h3 class="font-semibold text-orange-800 mb-2">💡 Pro Tips</h3>
+                            <div class="text-sm text-orange-700 space-y-1">
+                                <p>• Warm up 5 min before workout</p>
+                                <p>• Rest 45-60s between sets</p>
+                                <p>• Focus on form over speed</p>
+                                <p>• Hydrate during workout</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==================== ACTIONS ====================
+        function toggleMeal(dateKey, index) {
+            const key = `${dateKey}-${index}`;
+            mealChecks[key] = !mealChecks[key];
+            localStorage.setItem('fitlife_meals', JSON.stringify(mealChecks));
+            renderTabContent();
+        }
+
+        function toggleExercise(dateKey, index) {
+            const key = `${dateKey}-${index}`;
+            exerciseChecks[key] = !exerciseChecks[key];
+            localStorage.setItem('fitlife_exercises', JSON.stringify(exerciseChecks));
+            renderTabContent();
+        }
+
+        function toggleDayComplete() {
+            const dateKey = getDateKey(currentDay);
+            dayCompleted[dateKey] = !dayCompleted[dateKey];
+            localStorage.setItem('fitlife_days', JSON.stringify(dayCompleted));
+            
+            if (dayCompleted[dateKey]) {
+                // Check all meals and exercises
+                const mealData = mealTemplates[currentDay];
+                for (let i = 0; i < mealData.meals.length; i++) {
+                    mealChecks[`${dateKey}-${i}`] = true;
+                }
+                localStorage.setItem('fitlife_meals', JSON.stringify(mealChecks));
+                
+                const workout = workoutSchedule[currentDay];
+                const workoutData = workoutDetails[workout.type];
+                for (let i = 0; i < workoutData.exercises.length; i++) {
+                    if (!workoutData.exercises[i].isRest) {
+                        exerciseChecks[`${dateKey}-${i}`] = true;
+                    }
+                }
+                localStorage.setItem('fitlife_exercises', JSON.stringify(exerciseChecks));
+                
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            }
+            
+            renderDayNav();
+            renderTabContent();
+            updateStreak();
+        }
+
+        function setWater(amount) {
+            const dateKey = getDateKey(currentDay);
+            waterIntake[dateKey] = amount;
+            localStorage.setItem('fitlife_water', JSON.stringify(waterIntake));
+            renderTabContent();
+        }
+
+        function addWater() {
+            const dateKey = getDateKey(currentDay);
+            const current = waterIntake[dateKey] || 0;
+            if (current < 8) setWater(current + 1);
+        }
+
+        function resetWater() {
+            const dateKey = getDateKey(currentDay);
+            waterIntake[dateKey] = 0;
+            localStorage.setItem('fitlife_water', JSON.stringify(waterIntake));
+            renderTabContent();
+        }
+
+        function saveNotes() {
+            const dateKey = getDateKey(currentDay);
+            dayNotes[dateKey] = document.getElementById('dayNotes')?.value || '';
+            localStorage.setItem('fitlife_notes', JSON.stringify(dayNotes));
+        }
+
+        // Weight Modal
+        function openWeightModal() {
+            document.getElementById('weightModal').classList.remove('hidden');
+            document.getElementById('weightModal').classList.add('flex');
+            document.getElementById('weightDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('weightInput').value = weightLog[weightLog.length - 1]?.weight || 67.3;
+        }
+
+        function closeWeightModal() {
+            document.getElementById('weightModal').classList.add('hidden');
+            document.getElementById('weightModal').classList.remove('flex');
+        }
+
+        function saveWeight() {
+            const weight = parseFloat(document.getElementById('weightInput').value);
+            const date = document.getElementById('weightDate').value;
+            
+            if (weight && date) {
+                weightLog = weightLog.filter(w => w.date !== date);
+                weightLog.push({ date, weight });
+                weightLog.sort((a, b) => new Date(a.date) - new Date(b.date));
+                localStorage.setItem('fitlife_weight', JSON.stringify(weightLog));
+                
+                document.getElementById('headerWeight').textContent = weight.toFixed(1) + ' kg';
+                closeWeightModal();
+                renderTabContent();
+            }
+        }
+
+        // PR Modal
+        function openPrModal(exerciseName, prType, prUnit) {
+            currentPrExercise = { name: exerciseName, type: prType, unit: prUnit };
+            document.getElementById('prModal').classList.remove('hidden');
+            document.getElementById('prModal').classList.add('flex');
+            document.getElementById('prExerciseName').textContent = exerciseName;
+            document.getElementById('prLabel').textContent = prType === 'time' ? 'Time (seconds)' : 'Reps completed';
+            document.getElementById('prInput').value = prLog[exerciseName]?.value || '';
+            document.getElementById('prInput').placeholder = prType === 'time' ? '300' : '45';
+        }
+
+        function closePrModal() {
+            document.getElementById('prModal').classList.add('hidden');
+            document.getElementById('prModal').classList.remove('flex');
+            currentPrExercise = null;
+        }
+
+        function savePr() {
+            if (!currentPrExercise) return;
+            const value = parseInt(document.getElementById('prInput').value);
+            
+            if (value) {
+                const existing = prLog[currentPrExercise.name];
+                const isBetter = !existing || 
+                    (currentPrExercise.type === 'time' && value < existing.value) ||
+                    (currentPrExercise.type === 'reps' && value > existing.value);
+                
+                if (isBetter) {
+                    prLog[currentPrExercise.name] = {
+                        value,
+                        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        type: currentPrExercise.type
+                    };
+                    localStorage.setItem('fitlife_prs', JSON.stringify(prLog));
+                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+                }
+                
+                closePrModal();
+                renderTabContent();
+            }
+        }
+
+        function updateStreak() {
+            const streak = calculateStreak();
+            document.getElementById('streakCount').textContent = `${streak} day${streak !== 1 ? 's' : ''}`;
+        }
+
+        function attachEventListeners() {
+            // Day nav clicks
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentDay = parseInt(btn.dataset.day);
+                    renderDayNav();
+                    renderTabContent();
+                });
+            });
+        }
+
+        // Keyboard nav
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+            
+            if (e.key === 'ArrowRight' && currentDay < 6) {
+                currentDay++;
+                renderDayNav();
+                renderTabContent();
+            } else if (e.key === 'ArrowLeft' && currentDay > 0) {
+                currentDay--;
+                renderDayNav();
+                renderTabContent();
+            }
+        });
+
+        // ==================== INIT ====================
+        function init() {
+            const today = new Date();
+            const todayMonday = getMonday(today);
+            if (currentWeekStart.toDateString() === todayMonday.toDateString()) {
+                currentDay = (today.getDay() + 6) % 7;
+            }
+            
+            document.getElementById('todayDate').textContent = formatDate(new Date(), 'long');
+            document.getElementById('weekRangeDisplay').textContent = 
+                `${formatDate(currentWeekStart)} - ${formatDate(new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000))}`;
+            document.getElementById('headerWeight').textContent = (weightLog[weightLog.length - 1]?.weight || 67.3).toFixed(1) + ' kg';
+            
+            renderDayNav();
+            renderTabContent();
+            updateStreak();
+        }
+
+        init();
+    </script>
+</body>
+</html>
